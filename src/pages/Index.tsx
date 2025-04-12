@@ -3,7 +3,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
 import { Link } from "react-router-dom";
-import { BookOpen, PenTool, BarChart3, MicCheck } from "lucide-react";
+import { BookOpen, PenTool, BarChart3, Mic } from "lucide-react";
 
 const Index = () => {
   return (
@@ -62,7 +62,7 @@ const Index = () => {
             
             <div className="bg-card rounded-xl p-6 flex flex-col items-center text-center">
               <div className="h-14 w-14 bg-accent/10 rounded-full flex items-center justify-center mb-4">
-                <MicCheck className="h-7 w-7 text-accent" />
+                <Mic className="h-7 w-7 text-accent" />
               </div>
               <h3 className="text-xl font-medium mb-2">Listen</h3>
               <p className="text-muted-foreground">
