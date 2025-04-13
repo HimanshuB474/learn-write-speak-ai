@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Play, Pause, Volume2, VolumeX, RefreshCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { supabaseClient } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 interface TextToSpeechProps {
   text: string;
@@ -17,6 +18,8 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
   const [voice, setVoice] = useState("");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isMuted, setIsMuted] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   
   // Initialize speech synthesis
   useEffect(() => {
@@ -43,15 +46,61 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
         }
       };
     }
+    
+    // Create audio element
+    const audio = new Audio();
+    audio.onended = () => setIsPlaying(false);
+    setAudioElement(audio);
+    
+    return () => {
+      if (audio) {
+        audio.pause();
+        audio.src = '';
+      }
+    };
   }, []);
   
-  // Play or pause speech
-  const toggleSpeech = () => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      if (isPlaying) {
-        window.speechSynthesis.cancel();
-        setIsPlaying(false);
-      } else {
+  // Effect to update audio element when the URL changes
+  useEffect(() => {
+    if (audioElement && audioUrl) {
+      audioElement.src = audioUrl;
+      audioElement.volume = isMuted ? 0 : volume / 100;
+      audioElement.playbackRate = rate;
+    }
+  }, [audioUrl, audioElement]);
+  
+  // Generate TTS audio
+  const generateSpeech = async () => {
+    // In a production app, you would send this to your Supabase Edge Function
+    // which would call an external TTS API like ElevenLabs or AWS Polly
+    
+    // For now, we'll use the browser's built-in speech synthesis
+    // but structure the code to make it easy to swap in a real API later
+    
+    try {
+      // Show toast to indicate processing
+      toast.info("Generating speech...");
+      
+      // In a real implementation, you would call your Supabase function:
+      /*
+      const { data, error } = await supabaseClient.functions.invoke('generate-speech', {
+        body: { 
+          text, 
+          voice: voice, 
+          speed: rate 
+        }
+      });
+      
+      if (error) throw error;
+      setAudioUrl(data.audioUrl);
+      */
+      
+      // For now, we'll continue to use the browser's speech synthesis
+      if (window.speechSynthesis) {
+        // Clear any previous audio URL
+        setAudioUrl(null);
+        
+        // Use the browser's speech synthesis
         const utterance = new SpeechSynthesisUtterance(text);
         
         // Set voice if selected
@@ -69,8 +118,58 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
           setIsPlaying(false);
         };
         
+        window.speechSynthesis.cancel(); // Cancel any ongoing speech
         window.speechSynthesis.speak(utterance);
         setIsPlaying(true);
+        
+        // Log speech generation to Supabase for analytics
+        logSpeechGeneration();
+      }
+      
+    } catch (error) {
+      console.error("Error generating speech:", error);
+      toast.error("Failed to generate speech");
+    }
+  };
+  
+  // Log speech generation to Supabase
+  const logSpeechGeneration = async () => {
+    try {
+      const { error } = await supabaseClient
+        .from('speech_logs')
+        .insert({
+          text_length: text.length,
+          voice: voice,
+          rate: rate,
+          timestamp: new Date().toISOString()
+        });
+        
+      if (error) {
+        console.error("Error logging speech generation:", error);
+      }
+    } catch (error) {
+      console.error("Error logging to Supabase:", error);
+    }
+  };
+  
+  // Toggle play/pause
+  const toggleSpeech = () => {
+    if (audioElement && audioUrl) {
+      // If we have an audio URL, use the audio element
+      if (isPlaying) {
+        audioElement.pause();
+        setIsPlaying(false);
+      } else {
+        audioElement.play();
+        setIsPlaying(true);
+      }
+    } else {
+      // Otherwise use the browser's speech synthesis
+      if (isPlaying) {
+        window.speechSynthesis.cancel();
+        setIsPlaying(false);
+      } else {
+        generateSpeech();
       }
     }
   };
@@ -79,30 +178,15 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
   const toggleMute = () => {
     setIsMuted(!isMuted);
     
-    if (isPlaying && typeof window !== "undefined" && window.speechSynthesis) {
+    if (audioElement) {
+      audioElement.volume = isMuted ? volume / 100 : 0;
+    } else if (isPlaying) {
       window.speechSynthesis.cancel();
       setIsPlaying(false);
       
-      // If we're unmuting, start playing again
       if (isMuted) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        if (voice) {
-          const selectedVoice = availableVoices.find(v => v.name === voice);
-          if (selectedVoice) {
-            utterance.voice = selectedVoice;
-          }
-        }
-        
-        utterance.rate = rate;
-        utterance.volume = volume / 100;
-        
-        utterance.onend = () => {
-          setIsPlaying(false);
-        };
-        
-        window.speechSynthesis.speak(utterance);
-        setIsPlaying(true);
+        // If we're unmuting, restart speech
+        generateSpeech();
       }
     }
   };
@@ -137,28 +221,25 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
             className="flex-shrink-0"
             onClick={() => {
               if (isPlaying) {
-                window.speechSynthesis.cancel();
-                setIsPlaying(false);
-              }
-              
-              const utterance = new SpeechSynthesisUtterance(text);
-              
-              if (voice) {
-                const selectedVoice = availableVoices.find(v => v.name === voice);
-                if (selectedVoice) {
-                  utterance.voice = selectedVoice;
+                if (audioElement && audioUrl) {
+                  audioElement.pause();
+                  audioElement.currentTime = 0;
+                } else {
+                  window.speechSynthesis.cancel();
                 }
+                setIsPlaying(false);
               }
               
-              utterance.rate = rate;
-              utterance.volume = isMuted ? 0 : volume / 100;
-              
-              utterance.onend = () => {
-                setIsPlaying(false);
-              };
-              
-              window.speechSynthesis.speak(utterance);
-              setIsPlaying(true);
+              // Small delay before restarting
+              setTimeout(() => {
+                if (audioElement && audioUrl) {
+                  audioElement.currentTime = 0;
+                  audioElement.play();
+                  setIsPlaying(true);
+                } else {
+                  generateSpeech();
+                }
+              }, 10);
             }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
