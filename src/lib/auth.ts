@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = {
+  const contextValue = {
     user,
     session,
     isLoading,
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -68,3 +68,4 @@ export function useAuth() {
   }
   return context;
 }
+
