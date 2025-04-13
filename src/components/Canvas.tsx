@@ -2,6 +2,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Eraser, Download, Trash2, PenTool } from "lucide-react";
+import { supabaseClient } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 interface CanvasProps {
   onCaptureText: (text: string) => void;
@@ -12,6 +14,7 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Initialize canvas context
   useEffect(() => {
@@ -32,6 +35,9 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
       context.lineJoin = "round";
       context.strokeStyle = "black";
       context.lineWidth = 3;
+      // Fill with white background for better OCR results
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
     };
     
     resize();
@@ -102,6 +108,9 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
   const clearCanvas = () => {
     if (!ctx || !canvasRef.current) return;
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    // Refill with white background
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
   };
   
   // Save the canvas as image
@@ -115,19 +124,49 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
     link.click();
   };
   
-  // Process handwriting (mock implementation)
-  const processHandwriting = () => {
-    // In a real implementation, this would send the image to an API
-    // for handwriting recognition and return the text
+  // Process handwriting using Google Vision API via Supabase edge function
+  const processHandwriting = async () => {
+    if (!canvasRef.current) return;
     
-    // Mock result for now
-    const mockText = "This is recognized text from handwriting";
-    onCaptureText(mockText);
+    try {
+      setIsProcessing(true);
+      toast.info("Processing your handwriting...");
+      
+      // Get the image data
+      const dataURL = canvasRef.current.toDataURL("image/png");
+      
+      // Call the Supabase Edge Function for handwriting recognition
+      const { data, error } = await supabaseClient.functions.invoke('process-handwriting', {
+        body: { image: dataURL }
+      });
+      
+      if (error) {
+        console.error('Error processing handwriting:', error);
+        toast.error('Failed to process handwriting');
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Extract the recognized text
+      const recognizedText = data.text;
+      
+      if (recognizedText && recognizedText.trim() !== '') {
+        onCaptureText(recognizedText);
+      } else {
+        toast.error('No text was recognized. Please try again with clearer handwriting.');
+      }
+      
+      setIsProcessing(false);
+    } catch (error) {
+      console.error('Error processing handwriting:', error);
+      toast.error('An error occurred while processing your handwriting');
+      setIsProcessing(false);
+    }
   };
   
   return (
     <div className="space-y-4">
-      <div className="canvas-container bg-white">
+      <div className="canvas-container bg-white border-2 border-gray-300 rounded-md h-[300px]">
         <canvas
           ref={canvasRef}
           onMouseDown={startDrawing}
@@ -181,8 +220,9 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
           <Button 
             onClick={processHandwriting}
             size="sm"
+            disabled={isProcessing}
           >
-            Recognize Text
+            {isProcessing ? "Processing..." : "Recognize Text"}
           </Button>
         </div>
       </div>

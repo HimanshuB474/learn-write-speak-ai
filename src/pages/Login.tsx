@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -7,21 +7,44 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { AlertCircle } from "lucide-react";
 
 const Login = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { signIn } = useAuth();
+  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   
   // Get the page that redirected to login, if any
-  const from = location.state?.from || "/";
+  const from = location.state?.from || "/dashboard";
   
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // In a real app, this would connect to an authentication service
-    toast.success("Login successful!");
+    setIsLoading(true);
+    setErrorMessage("");
     
-    // Redirect user back to the page they came from
-    navigate(from);
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        setErrorMessage(error.message);
+        toast.error("Login failed. Please check your credentials.");
+      } else {
+        toast.success("Login successful!");
+        navigate(from);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setErrorMessage("An unexpected error occurred. Please try again.");
+      toast.error("Login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -36,10 +59,24 @@ const Login = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {errorMessage && (
+                <div className="bg-destructive/15 p-3 rounded-md flex items-center text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  {errorMessage}
+                </div>
+              )}
+              
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="john@example.com" required />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="john@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)} 
+                    required 
+                  />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -48,12 +85,24 @@ const Login = () => {
                       Forgot password?
                     </Link>
                   </div>
-                  <Input id="password" type="password" required />
+                  <Input 
+                    id="password" 
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required 
+                  />
                 </div>
               </div>
               
               <div className="space-y-4">
-                <Button type="submit" className="w-full">Sign In</Button>
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Signing in..." : "Sign In"}
+                </Button>
                 <p className="text-center text-sm">
                   Don't have an account?{" "}
                   <Link to="/register" className="text-accent font-medium hover:underline">
