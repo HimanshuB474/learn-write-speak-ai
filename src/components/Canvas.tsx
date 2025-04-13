@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Eraser, Download, Trash2, PenTool, Upload } from "lucide-react";
+import { Eraser, Download, Trash2, PenTool } from "lucide-react";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
@@ -35,6 +35,9 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
       context.lineJoin = "round";
       context.strokeStyle = "black";
       context.lineWidth = 3;
+      // Fill with white background for better OCR results
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
     };
     
     resize();
@@ -105,6 +108,9 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
   const clearCanvas = () => {
     if (!ctx || !canvasRef.current) return;
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    // Refill with white background
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
   };
   
   // Save the canvas as image
@@ -144,9 +150,8 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
       // Extract the recognized text
       const recognizedText = data.text;
       
-      if (recognizedText) {
+      if (recognizedText && recognizedText.trim() !== '') {
         onCaptureText(recognizedText);
-        toast.success('Handwriting processed successfully!');
       } else {
         toast.error('No text was recognized. Please try again with clearer handwriting.');
       }

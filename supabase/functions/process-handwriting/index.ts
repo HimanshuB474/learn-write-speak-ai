@@ -59,7 +59,7 @@ async function generateGoogleAccessToken() {
   const privateKey = SERVICE_ACCOUNT.private_key
     .replace(/-----BEGIN PRIVATE KEY-----\n/, "")
     .replace(/\n-----END PRIVATE KEY-----\n?/, "")
-    .replace(/\s/g, "");
+    .replace(/\\n/g, "\n"); // Important: Handle escaped newlines properly
 
   const binaryKey = Uint8Array.from(atob(privateKey), (c) => c.charCodeAt(0));
   const cryptoKey = await crypto.subtle.importKey(
@@ -103,6 +103,12 @@ async function generateGoogleAccessToken() {
     }),
   });
 
+  if (!tokenResponse.ok) {
+    const errorData = await tokenResponse.text();
+    console.error("Token exchange error:", errorData);
+    throw new Error(`Failed to exchange JWT: ${tokenResponse.status} ${errorData}`);
+  }
+
   const tokenData = await tokenResponse.json();
   return tokenData.access_token;
 }
@@ -111,23 +117,31 @@ async function generateGoogleAccessToken() {
 async function processHandwriting(imageBase64: string) {
   try {
     const accessToken = await generateGoogleAccessToken();
+    console.log("Successfully generated Google access token");
+    
+    // Clean up base64 data
+    const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
     
     const requestBody = {
       requests: [
         {
           image: {
-            content: imageBase64,
+            content: cleanBase64,
           },
           features: [
             {
               type: "DOCUMENT_TEXT_DETECTION",
-              maxResults: 1,
+              maxResults: 10,
             },
           ],
+          imageContext: {
+            languageHints: ["en-t-i0-handwrit"]
+          }
         },
       ],
     };
 
+    console.log("Sending request to Vision API...");
     const response = await fetch(GOOGLE_VISION_API_URL, {
       method: "POST",
       headers: {
@@ -137,14 +151,24 @@ async function processHandwriting(imageBase64: string) {
       body: JSON.stringify(requestBody),
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Vision API error response:", errorText);
+      throw new Error(`Vision API error: ${response.status} ${errorText}`);
+    }
+
     const data = await response.json();
     
     // Log the response for debugging
     console.log("Vision API response:", JSON.stringify(data));
     
-    // Extract text from response
-    const textAnnotations = data.responses[0]?.textAnnotations;
-    const recognizedText = textAnnotations?.[0]?.description || "";
+    // Extract text from response - first try fullTextAnnotation for better formatting
+    let recognizedText = data.responses[0]?.fullTextAnnotation?.text;
+    
+    // If no text was found with fullTextAnnotation, try textAnnotations
+    if (!recognizedText) {
+      recognizedText = data.responses[0]?.textAnnotations?.[0]?.description || "";
+    }
     
     return recognizedText;
   } catch (error) {
@@ -173,13 +197,11 @@ serve(async (req) => {
       );
     }
 
-    // Extract base64 content from data URL if needed
-    const imageBase64 = image.startsWith("data:image") 
-      ? image.split(",")[1] 
-      : image;
-
+    console.log("Processing handwriting request...");
+    
     // Process the image with Google Vision API
-    const recognizedText = await processHandwriting(imageBase64);
+    const recognizedText = await processHandwriting(image);
+    console.log("Recognized text:", recognizedText ? "Text found" : "No text found");
 
     // Return the recognized text
     return new Response(
