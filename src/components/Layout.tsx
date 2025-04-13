@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { 
@@ -12,12 +12,8 @@ import {
   BarChart3,
   LogIn,
   UserPlus,
-  User,
-  LogOut,
-  BookOpenCheck
+  User
 } from "lucide-react";
-import { useAuth } from "@/lib/auth";
-import { toast } from "sonner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,48 +22,24 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, signOut, isLoading } = useAuth();
-  
   const isActive = (path: string) => location.pathname === path;
+
+  // Mock authentication state - replace with actual auth later
+  const isAuthenticated = false;
 
   const navItems = [
     { name: "Home", path: "/", icon: <Home className="h-5 w-5" /> },
     { name: "Write & Speak", path: "/write-speak", icon: <PenTool className="h-5 w-5" /> },
     { name: "Dashboard", path: "/dashboard", icon: <BarChart3 className="h-5 w-5" />, authRequired: true },
-    { name: "Resources", path: "/resources", icon: <BookOpenCheck className="h-5 w-5" />, authRequired: true },
   ];
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      toast.success("You have been logged out");
-      navigate("/");
-    } catch (error) {
-      console.error("Error signing out:", error);
-      toast.error("Error signing out");
-    }
-  };
-
-  const authItems = user 
+  const authItems = isAuthenticated 
     ? [
-        { 
-          name: "Sign Out", 
-          action: handleSignOut, 
-          icon: <LogOut className="h-5 w-5" /> 
-        }
+        { name: "Profile", path: "/profile", icon: <User className="h-5 w-5" /> }
       ]
     : [
-        { 
-          name: "Login", 
-          path: "/login", 
-          icon: <LogIn className="h-5 w-5" /> 
-        },
-        { 
-          name: "Register", 
-          path: "/register", 
-          icon: <UserPlus className="h-5 w-5" /> 
-        }
+        { name: "Login", path: "/login", icon: <LogIn className="h-5 w-5" /> },
+        { name: "Register", path: "/register", icon: <UserPlus className="h-5 w-5" /> }
       ];
 
   return (
@@ -83,7 +55,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-6 items-center">
             {navItems.map((item) => {
-              if (item.authRequired && !user) return null;
+              if (item.authRequired && !isAuthenticated) return null;
               return (
                 <Link 
                   key={item.name} 
@@ -101,37 +73,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               );
             })}
             
-            {isLoading ? (
-              <div className="w-20 h-5 bg-muted animate-pulse rounded"></div>
-            ) : (
-              authItems.map((item, index) => (
-                item.path ? (
-                  <Link 
-                    key={item.name} 
-                    to={item.path} 
-                    className={cn(
-                      "flex items-center space-x-1 py-2 text-base transition-colors",
-                      isActive(item.path) 
-                        ? "text-accent font-medium" 
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </Link>
-                ) : (
-                  <Button 
-                    key={item.name}
-                    variant="ghost"
-                    className="flex items-center space-x-1"
-                    onClick={item.action}
-                  >
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </Button>
-                )
-              ))
-            )}
+            {authItems.map(item => (
+              <Link 
+                key={item.name} 
+                to={item.path} 
+                className={cn(
+                  "flex items-center space-x-1 py-2 text-base transition-colors",
+                  isActive(item.path) 
+                    ? "text-accent font-medium" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {item.icon}
+                <span>{item.name}</span>
+              </Link>
+            ))}
           </nav>
 
           {/* Mobile menu button */}
@@ -165,7 +121,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           
           <nav className="flex flex-col p-6 space-y-6">
             {navItems.map((item) => {
-              if (item.authRequired && !user) return null;
+              if (item.authRequired && !isAuthenticated) return null;
               return (
                 <Link 
                   key={item.name} 
@@ -186,35 +142,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             
             <div className="border-t pt-6"></div>
             
-            {!isLoading && authItems.map((item) => (
-              item.path ? (
-                <Link 
-                  key={item.name} 
-                  to={item.path} 
-                  className={cn(
-                    "flex items-center space-x-3 py-2 text-lg",
-                    isActive(item.path) 
-                      ? "text-accent font-medium" 
-                      : "text-muted-foreground"
-                  )}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {item.icon}
-                  <span>{item.name}</span>
-                </Link>
-              ) : (
-                <button 
-                  key={item.name}
-                  className="flex items-center space-x-3 py-2 text-lg text-muted-foreground"
-                  onClick={() => {
-                    item.action?.();
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  {item.icon}
-                  <span>{item.name}</span>
-                </button>
-              )
+            {authItems.map(item => (
+              <Link 
+                key={item.name} 
+                to={item.path} 
+                className={cn(
+                  "flex items-center space-x-3 py-2 text-lg",
+                  isActive(item.path) 
+                    ? "text-accent font-medium" 
+                    : "text-muted-foreground"
+                )}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {item.icon}
+                <span>{item.name}</span>
+              </Link>
             ))}
           </nav>
         </div>

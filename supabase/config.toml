@@ -1,5 +1,0 @@
-
-project_id = "fxtuychhivqfhbdfcuie"
-
-[functions.process-handwriting]
-verify_jwt = false

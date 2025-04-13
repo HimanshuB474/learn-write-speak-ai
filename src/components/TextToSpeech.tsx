@@ -1,10 +1,10 @@
 
-import React, { useState, useRef } from "react";
-import { Button } from "./ui/button";
-import { Slider } from "./ui/slider";
-import { Play, Pause, Volume2, RotateCcw, Download } from "lucide-react";
-import { supabaseClient } from "@/lib/supabaseClient";
-import { toast } from "sonner";
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Play, Pause, Volume2, VolumeX, RefreshCw } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 interface TextToSpeechProps {
   text: string;
@@ -12,152 +12,211 @@ interface TextToSpeechProps {
 
 const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [audioSrc, setAudioSrc] = useState<string>("");
+  const [volume, setVolume] = useState(80);
+  const [rate, setRate] = useState(1);
+  const [voice, setVoice] = useState("");
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [isMuted, setIsMuted] = useState(false);
   
-  // Function to handle TTS generation
-  const generateSpeech = async () => {
-    try {
-      setIsLoading(true);
-      
-      // For this implementation, we'll use the browser's built-in speech synthesis
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.volume = volume;
-      
-      // Start speaking
-      speechSynthesis.speak(utterance);
-      setIsPlaying(true);
-      
-      // Events for speech synthesis
-      utterance.onstart = () => {
-        setIsPlaying(true);
+  // Initialize speech synthesis
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      const updateVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        setAvailableVoices(voices);
+        
+        // Set a default voice if available
+        if (voices.length > 0 && !voice) {
+          const defaultVoice = voices.find(v => v.default) || voices[0];
+          setVoice(defaultVoice.name);
+        }
       };
       
-      utterance.onend = () => {
-        setIsPlaying(false);
+      // Chrome requires this to be called this way
+      speechSynthesis.addEventListener("voiceschanged", updateVoices);
+      updateVoices(); // For browsers that load voices immediately
+      
+      return () => {
+        speechSynthesis.removeEventListener("voiceschanged", updateVoices);
+        if (isPlaying) {
+          window.speechSynthesis.cancel();
+        }
       };
-      
-      utterance.onerror = (event) => {
-        console.error('Speech synthesis error:', event);
-        setIsPlaying(false);
-        toast.error("Error generating speech");
-      };
-      
-      // Log the speech generation to Supabase
-      try {
-        await supabaseClient
-          .from('speech_logs')
-          .insert({
-            speech_text: text
-          });
-      } catch (dbError) {
-        console.error('Error logging speech generation:', dbError);
-        // Don't show error to user, this is just for logging
-      }
-      
-    } catch (error) {
-      console.error('Error generating speech:', error);
-      toast.error("Failed to generate speech");
-    } finally {
-      setIsLoading(false);
     }
-  };
-  
-  // Function to play/pause audio
-  const togglePlayback = () => {
-    if (isPlaying) {
-      speechSynthesis.pause();
-      setIsPlaying(false);
-    } else {
-      if (speechSynthesis.paused) {
-        speechSynthesis.resume();
-      } else {
-        generateSpeech();
-      }
-      setIsPlaying(true);
-    }
-  };
-  
-  // Function to restart audio
-  const restartAudio = () => {
-    speechSynthesis.cancel();
-    setIsPlaying(false);
-    setTimeout(() => {
-      generateSpeech();
-    }, 100);
-  };
-  
-  // Handle volume change
-  const handleVolumeChange = (value: number[]) => {
-    const newVolume = value[0];
-    setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
-    }
-    if (isPlaying) {
-      speechSynthesis.cancel();
-      setTimeout(() => {
-        generateSpeech();
-      }, 100);
-    }
-  };
-  
-  // Clean up speech synthesis when component unmounts
-  React.useEffect(() => {
-    return () => {
-      speechSynthesis.cancel();
-    };
   }, []);
   
+  // Play or pause speech
+  const toggleSpeech = () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      if (isPlaying) {
+        window.speechSynthesis.cancel();
+        setIsPlaying(false);
+      } else {
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Set voice if selected
+        if (voice) {
+          const selectedVoice = availableVoices.find(v => v.name === voice);
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+          }
+        }
+        
+        utterance.rate = rate;
+        utterance.volume = isMuted ? 0 : volume / 100;
+        
+        utterance.onend = () => {
+          setIsPlaying(false);
+        };
+        
+        window.speechSynthesis.speak(utterance);
+        setIsPlaying(true);
+      }
+    }
+  };
+  
+  // Toggle mute
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    
+    if (isPlaying && typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      
+      // If we're unmuting, start playing again
+      if (isMuted) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        if (voice) {
+          const selectedVoice = availableVoices.find(v => v.name === voice);
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+          }
+        }
+        
+        utterance.rate = rate;
+        utterance.volume = volume / 100;
+        
+        utterance.onend = () => {
+          setIsPlaying(false);
+        };
+        
+        window.speechSynthesis.speak(utterance);
+        setIsPlaying(true);
+      }
+    }
+  };
+  
   return (
-    <div className="bg-card border rounded-lg p-6 space-y-4">
-      <div className="text-sm text-muted-foreground mb-2">
-        Listen to the recognized text:
-      </div>
-      
-      <div className="flex flex-wrap gap-4 items-center">
-        <Button
-          onClick={togglePlayback}
-          disabled={isLoading}
-          className="min-w-[100px]"
-        >
-          {isLoading ? (
-            <span>Loading...</span>
-          ) : isPlaying ? (
-            <>
-              <Pause className="mr-2 h-4 w-4" /> Pause
-            </>
-          ) : (
-            <>
-              <Play className="mr-2 h-4 w-4" /> Play
-            </>
-          )}
-        </Button>
-        
-        <Button
-          variant="outline"
-          onClick={restartAudio}
-          disabled={isLoading}
-        >
-          <RotateCcw className="h-4 w-4" />
-          <span className="sr-only">Restart</span>
-        </Button>
-        
-        <div className="flex items-center gap-2 min-w-[150px] max-w-[200px]">
-          <Volume2 className="h-4 w-4" />
-          <Slider
-            defaultValue={[volume]}
-            max={1}
-            step={0.1}
-            onValueChange={handleVolumeChange}
-          />
+    <div className="bg-card p-5 rounded-lg border shadow-sm">
+      <div className="space-y-6">
+        <div className="flex flex-wrap gap-3">
+          <Button
+            onClick={toggleSpeech}
+            variant="default"
+            size="sm"
+            className="flex-shrink-0"
+          >
+            {isPlaying ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+            {isPlaying ? "Pause" : "Play"}
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-shrink-0"
+            onClick={toggleMute}
+          >
+            {isMuted ? <VolumeX className="h-4 w-4 mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}
+            {isMuted ? "Unmute" : "Mute"}
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-shrink-0"
+            onClick={() => {
+              if (isPlaying) {
+                window.speechSynthesis.cancel();
+                setIsPlaying(false);
+              }
+              
+              const utterance = new SpeechSynthesisUtterance(text);
+              
+              if (voice) {
+                const selectedVoice = availableVoices.find(v => v.name === voice);
+                if (selectedVoice) {
+                  utterance.voice = selectedVoice;
+                }
+              }
+              
+              utterance.rate = rate;
+              utterance.volume = isMuted ? 0 : volume / 100;
+              
+              utterance.onend = () => {
+                setIsPlaying(false);
+              };
+              
+              window.speechSynthesis.speak(utterance);
+              setIsPlaying(true);
+            }}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Restart
+          </Button>
         </div>
-      </div>
-      
-      <div className="p-3 bg-muted/50 rounded-lg">
-        <p className="text-sm">{text}</p>
+        
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex justify-between mb-2">
+              <Label htmlFor="voice-select">Voice</Label>
+            </div>
+            <Select
+              value={voice}
+              onValueChange={setVoice}
+            >
+              <SelectTrigger id="voice-select" className="w-full">
+                <SelectValue placeholder="Select a voice" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableVoices.map((voice) => (
+                  <SelectItem key={voice.name} value={voice.name}>
+                    {voice.name} ({voice.lang})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="volume-slider">Volume: {volume}%</Label>
+            </div>
+            <Slider
+              id="volume-slider"
+              min={0}
+              max={100}
+              step={1}
+              value={[volume]}
+              onValueChange={(value) => setVolume(value[0])}
+              disabled={isMuted}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="rate-slider">Speed: {rate.toFixed(1)}</Label>
+            </div>
+            <Slider
+              id="rate-slider" 
+              min={0.5}
+              max={2}
+              step={0.1}
+              value={[rate]}
+              onValueChange={(value) => setRate(value[0])}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

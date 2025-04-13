@@ -10,88 +10,40 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowUpFromLine } from "lucide-react";
 import { toast } from "sonner";
-import { supabaseClient } from "@/lib/supabaseClient";
 
 const WriteAndSpeak = () => {
   const [recognizedText, setRecognizedText] = useState("");
   const [manualText, setManualText] = useState("");
   const [textToSpeak, setTextToSpeak] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
   
   // Handle text from handwriting recognition
   const handleCaptureText = (text: string) => {
-    if (text) {
-      setRecognizedText(text);
-      setTextToSpeak(text);
-      toast.success("Text recognized successfully!");
-    } else {
-      toast.error("No text was recognized. Please try again with clearer handwriting.");
-    }
+    setRecognizedText(text);
+    setTextToSpeak(text);
+    toast.success("Text recognized successfully!");
   };
   
   // Handle text input manually
   const handleManualSubmit = () => {
-    if (manualText.trim()) {
-      setTextToSpeak(manualText);
-      setRecognizedText(manualText);
-      toast.success("Text submitted for speech");
-    } else {
-      toast.error("Please enter some text first");
-    }
+    setTextToSpeak(manualText);
+    toast.success("Text submitted for speech");
   };
   
-  // Handle image upload and process with Google Vision API
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Mock upload function
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Check if the file is an image
-    if (!file.type.startsWith('image/')) {
-      toast.error("Please upload an image file");
-      return;
-    }
-    
-    setIsProcessing(true);
+    // In a real app, you'd send this file to an API for processing
+    // For now, we'll simulate recognition with a timeout
     toast.info("Processing your handwriting...");
     
-    try {
-      // Convert the file to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = async () => {
-        const base64data = reader.result as string;
-        
-        // Call the Supabase Edge Function for handwriting recognition
-        const { data, error } = await supabaseClient.functions.invoke('process-handwriting', {
-          body: { image: base64data }
-        });
-        
-        if (error) {
-          console.error('Error processing handwriting:', error);
-          toast.error('Failed to process handwriting');
-          setIsProcessing(false);
-          return;
-        }
-        
-        // Extract the recognized text
-        const extractedText = data.text;
-        
-        if (extractedText && extractedText.trim() !== '') {
-          setRecognizedText(extractedText);
-          setTextToSpeak(extractedText);
-          toast.success('Handwriting processed successfully!');
-        } else {
-          toast.error('No text was recognized. Please try again with clearer handwriting.');
-        }
-        
-        setIsProcessing(false);
-      };
-      
-    } catch (error) {
-      console.error('Error processing image:', error);
-      toast.error('An error occurred while processing your image');
-      setIsProcessing(false);
-    }
+    setTimeout(() => {
+      const mockRecognizedText = "This is sample text recognized from your uploaded image. In a production application, this would be the actual text extracted from your handwriting.";
+      setRecognizedText(mockRecognizedText);
+      setTextToSpeak(mockRecognizedText);
+      toast.success("Handwriting processed successfully!");
+    }, 2000);
   };
   
   return (
@@ -134,12 +86,9 @@ const WriteAndSpeak = () => {
                       accept="image/*"
                       className="hidden"
                       onChange={handleImageUpload}
-                      disabled={isProcessing}
                     />
-                    <Button asChild disabled={isProcessing}>
-                      <label htmlFor="file-upload">
-                        {isProcessing ? "Processing..." : "Select Image"}
-                      </label>
+                    <Button asChild>
+                      <label htmlFor="file-upload">Select Image</label>
                     </Button>
                   </div>
                 </CardContent>
