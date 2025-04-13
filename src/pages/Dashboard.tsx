@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import DashboardCard from "@/components/DashboardCard";
@@ -14,6 +14,9 @@ import {
   Clock,
   Star
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { supabaseClient } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 // Mock data - would come from a real API in production
 const mockStats = {
@@ -33,18 +36,26 @@ const mockRecentSessions = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
 
-  // This would be a real auth check in production
-  const isAuthenticated = false;
-  
   // Redirect if not authenticated
-  React.useEffect(() => {
-    if (!isAuthenticated) {
+  useEffect(() => {
+    if (!isLoading && !user) {
       navigate("/login", { state: { from: "/dashboard" } });
     }
-  }, [isAuthenticated, navigate]);
+  }, [user, isLoading, navigate]);
 
-  if (!isAuthenticated) {
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="animate-pulse text-accent">Loading your dashboard...</div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!user) {
     return null; // Will redirect in useEffect
   }
   
@@ -53,7 +64,10 @@ const Dashboard = () => {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <Button onClick={() => navigate("/write-speak")}>New Session</Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate("/write-speak")}>New Session</Button>
+            <Button variant="outline" onClick={() => navigate("/resources")}>Dyslexia Resources</Button>
+          </div>
         </div>
         
         {/* Stats Overview */}
@@ -148,7 +162,7 @@ const Dashboard = () => {
               </div>
               
               <div className="pt-2">
-                <Button variant="outline" className="w-full">View All Stats</Button>
+                <Button variant="outline" className="w-full" onClick={() => navigate("/resources")}>View Dyslexia Resources</Button>
               </div>
             </div>
           </DashboardCard>
