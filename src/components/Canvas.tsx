@@ -17,6 +17,29 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // Translations for UI elements
+  const translations = {
+    en: {
+      pen: "Pen",
+      eraser: "Eraser",
+      clear: "Clear",
+      save: "Save",
+      recognizeText: "Recognize Text",
+      processing: "Processing...",
+    },
+    hi: {
+      pen: "कलम",
+      eraser: "इरेज़र",
+      clear: "साफ़ करें",
+      save: "सहेजें",
+      recognizeText: "टेक्स्ट पहचानें",
+      processing: "प्रसंस्करण हो रहा है...",
+    }
+  };
+  
+  // Get current language translations
+  const t = translations[language as keyof typeof translations];
+  
   // Initialize canvas context
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -154,13 +177,19 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
       if (recognizedText && recognizedText.trim() !== '') {
         onCaptureText(recognizedText);
       } else {
-        toast.error('No text was recognized. Please try again with clearer handwriting.');
+        toast.error(language === "hi" ? 
+          "कोई टेक्स्ट नहीं पहचाना गया। कृपया स्पष्ट हस्तलेखन के साथ फिर से प्रयास करें।" : 
+          "No text was recognized. Please try again with clearer handwriting."
+        );
       }
       
       setIsProcessing(false);
     } catch (error) {
       console.error('Error processing handwriting:', error);
-      toast.error('An error occurred while processing your handwriting');
+      toast.error(language === "hi" ? 
+        "आपके हस्तलेखन को संसाधित करते समय एक त्रुटि हुई" : 
+        "An error occurred while processing your handwriting"
+      );
       setIsProcessing(false);
     }
   };
@@ -189,7 +218,7 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
             size="sm"
           >
             <PenTool className="h-4 w-4 mr-2" />
-            Pen
+            {t.pen}
           </Button>
           <Button
             variant={tool === "eraser" ? "default" : "outline"}
@@ -197,7 +226,7 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
             size="sm"
           >
             <Eraser className="h-4 w-4 mr-2" />
-            Eraser
+            {t.eraser}
           </Button>
           <Button
             variant="outline"
@@ -205,7 +234,7 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
             size="sm"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Clear
+            {t.clear}
           </Button>
         </div>
         
@@ -216,14 +245,14 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
             size="sm"
           >
             <Download className="h-4 w-4 mr-2" />
-            Save
+            {t.save}
           </Button>
           <Button 
             onClick={processHandwriting}
             size="sm"
             disabled={isProcessing}
           >
-            {isProcessing ? "Processing..." : "Recognize Text"}
+            {isProcessing ? t.processing : t.recognizeText}
           </Button>
         </div>
       </div>

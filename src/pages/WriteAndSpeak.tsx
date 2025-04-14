@@ -26,14 +26,67 @@ const WriteAndSpeak = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [language, setLanguage] = useState("en");
   
+  // Translations for UI elements
+  const translations = {
+    en: {
+      title: "Write & Speak",
+      subtitle: "Write or type your text, and our AI will convert it to speech. Perfect for practicing pronunciation and improving reading skills.",
+      languageLabel: "Language:",
+      languageHint: "Currently set to recognize English text",
+      drawTab: "Draw",
+      uploadTab: "Upload",
+      typeTab: "Type",
+      drawDescription: "Use the canvas below to write your text. Our AI will recognize it and convert it to digital text.",
+      uploadTitle: "Upload an image of your handwriting",
+      selectImage: "Select Image",
+      processing: "Processing...",
+      typeLabel: "Type your text",
+      typePlaceholder: "Type your text here...",
+      submitText: "Submit Text",
+      recognizedTextLabel: "Recognized Text",
+      recognizedTextPlaceholder: "Recognized text will appear here...",
+      textToSpeechTitle: "Text to Speech",
+      noTextError: "Please enter some text first",
+      textSubmitted: "Text submitted for speech",
+      successRecognition: "Text recognized successfully!",
+      failedRecognition: "No text was recognized. Please try again with clearer handwriting."
+    },
+    hi: {
+      title: "लिखें और बोलें",
+      subtitle: "अपना टेक्स्ट लिखें या टाइप करें, और हमारा AI इसे भाषण में बदल देगा। उच्चारण का अभ्यास करने और पढ़ने के कौशल को बेहतर बनाने के लिए बिल्कुल सही।",
+      languageLabel: "भाषा:",
+      languageHint: "वर्तमान में हिंदी पाठ को पहचानने के लिए सेट है",
+      drawTab: "आरेख",
+      uploadTab: "अपलोड",
+      typeTab: "टाइप",
+      drawDescription: "अपना टेक्स्ट लिखने के लिए नीचे दिए गए कैनवास का उपयोग करें। हमारा AI इसे पहचान कर डिजिटल टेक्स्ट में बदल देगा।",
+      uploadTitle: "अपनी हस्तलिखित छवि अपलोड करें",
+      selectImage: "छवि चुनें",
+      processing: "प्रसंस्करण हो रहा है...",
+      typeLabel: "अपना टेक्स्ट टाइप करें",
+      typePlaceholder: "अपना टेक्स्ट यहां टाइप करें...",
+      submitText: "टेक्स्ट सबमिट करें",
+      recognizedTextLabel: "पहचाना गया टेक्स्ट",
+      recognizedTextPlaceholder: "पहचाना गया टेक्स्ट यहां दिखाई देगा...",
+      textToSpeechTitle: "टेक्स्ट से भाषण",
+      noTextError: "कृपया पहले कुछ टेक्स्ट दर्ज करें",
+      textSubmitted: "भाषण के लिए टेक्स्ट सबमिट किया गया",
+      successRecognition: "टेक्स्ट सफलतापूर्वक पहचाना गया!",
+      failedRecognition: "कोई टेक्स्ट नहीं पहचाना गया। कृपया स्पष्ट हस्तलेखन के साथ फिर से प्रयास करें।"
+    }
+  };
+  
+  // Current language translations
+  const t = translations[language as keyof typeof translations];
+  
   // Handle text from handwriting recognition
   const handleCaptureText = (text: string) => {
     if (text) {
       setRecognizedText(text);
       setTextToSpeak(text);
-      toast.success("Text recognized successfully!");
+      toast.success(t.successRecognition);
     } else {
-      toast.error("No text was recognized. Please try again with clearer handwriting.");
+      toast.error(t.failedRecognition);
     }
   };
   
@@ -42,9 +95,9 @@ const WriteAndSpeak = () => {
     if (manualText.trim()) {
       setTextToSpeak(manualText);
       setRecognizedText(manualText);
-      toast.success("Text submitted for speech");
+      toast.success(t.textSubmitted);
     } else {
-      toast.error("Please enter some text first");
+      toast.error(t.noTextError);
     }
   };
   
@@ -69,7 +122,7 @@ const WriteAndSpeak = () => {
       reader.onloadend = async () => {
         const base64data = reader.result as string;
         
-        // Call the Supabase Edge Function for handwriting recognition
+        // Call the Supabase Edge Function for handwriting recognition with language parameter
         const { data, error } = await supabaseClient.functions.invoke('process-handwriting', {
           body: { image: base64data, language }
         });
@@ -87,9 +140,9 @@ const WriteAndSpeak = () => {
         if (extractedText && extractedText.trim() !== '') {
           setRecognizedText(extractedText);
           setTextToSpeak(extractedText);
-          toast.success('Handwriting processed successfully!');
+          toast.success(t.successRecognition);
         } else {
-          toast.error('No text was recognized. Please try again with clearer handwriting.');
+          toast.error(t.failedRecognition);
         }
         
         setIsProcessing(false);
@@ -106,16 +159,15 @@ const WriteAndSpeak = () => {
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold mb-4">Write & Speak</h1>
+          <h1 className="text-4xl font-bold mb-4">{t.title}</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Write or type your text, and our AI will convert it to speech.
-            Perfect for practicing pronunciation and improving reading skills.
+            {t.subtitle}
           </p>
         </div>
         
         <div className="mb-6">
           <div className="flex items-center space-x-4">
-            <Label htmlFor="language-select" className="whitespace-nowrap">Language:</Label>
+            <Label htmlFor="language-select" className="whitespace-nowrap">{t.languageLabel}</Label>
             <Select 
               value={language} 
               onValueChange={setLanguage}
@@ -125,29 +177,26 @@ const WriteAndSpeak = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>
-                <SelectItem value="hi">Hindi</SelectItem>
+                <SelectItem value="hi">हिंदी (Hindi)</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {language === "en" ? 
-              "Currently set to recognize English text" : 
-              "वर्तमान में हिंदी पाठ को पहचानने के लिए सेट है"
-            }
+            {t.languageHint}
           </p>
         </div>
         
         <div className="space-y-8">
           <Tabs defaultValue="draw" className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-2">
-              <TabsTrigger value="draw">Draw</TabsTrigger>
-              <TabsTrigger value="upload">Upload</TabsTrigger>
-              <TabsTrigger value="type">Type</TabsTrigger>
+              <TabsTrigger value="draw">{t.drawTab}</TabsTrigger>
+              <TabsTrigger value="upload">{t.uploadTab}</TabsTrigger>
+              <TabsTrigger value="type">{t.typeTab}</TabsTrigger>
             </TabsList>
             
             <TabsContent value="draw" className="space-y-6">
               <p className="text-sm text-muted-foreground mb-2">
-                Use the canvas below to write your text. Our AI will recognize it and convert it to digital text.
+                {t.drawDescription}
               </p>
               <Canvas onCaptureText={handleCaptureText} language={language} />
             </TabsContent>
@@ -158,7 +207,7 @@ const WriteAndSpeak = () => {
                   <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg p-12 text-center">
                     <ArrowUpFromLine className="h-10 w-10 text-muted-foreground mb-4" />
                     <p className="mb-4 text-sm text-muted-foreground">
-                      Upload an image of your handwriting
+                      {t.uploadTitle}
                     </p>
                     <input
                       id="file-upload"
@@ -170,7 +219,7 @@ const WriteAndSpeak = () => {
                     />
                     <Button asChild disabled={isProcessing}>
                       <label htmlFor="file-upload">
-                        {isProcessing ? "Processing..." : "Select Image"}
+                        {isProcessing ? t.processing : t.selectImage}
                       </label>
                     </Button>
                   </div>
@@ -181,16 +230,17 @@ const WriteAndSpeak = () => {
             <TabsContent value="type" className="space-y-4">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="manual-text">Type your text</Label>
+                  <Label htmlFor="manual-text">{t.typeLabel}</Label>
                   <Textarea
                     id="manual-text"
-                    placeholder="Type your text here..."
+                    placeholder={t.typePlaceholder}
                     className="min-h-32"
                     value={manualText}
                     onChange={(e) => setManualText(e.target.value)}
+                    dir={language === "hi" ? "auto" : "ltr"}
                   />
                 </div>
-                <Button onClick={handleManualSubmit}>Submit Text</Button>
+                <Button onClick={handleManualSubmit}>{t.submitText}</Button>
               </div>
             </TabsContent>
           </Tabs>
@@ -199,7 +249,7 @@ const WriteAndSpeak = () => {
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-2">
-                  <Label htmlFor="recognized-text">Recognized Text</Label>
+                  <Label htmlFor="recognized-text">{t.recognizedTextLabel}</Label>
                   <Textarea
                     id="recognized-text"
                     className="min-h-24"
@@ -208,7 +258,8 @@ const WriteAndSpeak = () => {
                       setRecognizedText(e.target.value);
                       setTextToSpeak(e.target.value);
                     }}
-                    placeholder="Recognized text will appear here..."
+                    placeholder={t.recognizedTextPlaceholder}
+                    dir={language === "hi" ? "auto" : "ltr"}
                   />
                 </div>
               </CardContent>
@@ -217,8 +268,8 @@ const WriteAndSpeak = () => {
           
           {textToSpeak && (
             <div className="mt-8">
-              <h2 className="text-xl font-semibold mb-4">Text to Speech</h2>
-              <TextToSpeech text={textToSpeak} />
+              <h2 className="text-xl font-semibold mb-4">{t.textToSpeechTitle}</h2>
+              <TextToSpeech text={textToSpeak} language={language} />
             </div>
           )}
         </div>

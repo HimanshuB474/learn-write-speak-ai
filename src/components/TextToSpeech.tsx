@@ -2,29 +2,45 @@
 import React, { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
-import { Play, Pause, Volume2, RotateCcw, Download } from "lucide-react";
+import { Play, Pause, Volume2, RotateCcw } from "lucide-react";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
 interface TextToSpeechProps {
   text: string;
+  language?: string;
 }
 
-const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
+const TextToSpeech: React.FC<TextToSpeechProps> = ({ text, language = "en" }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [audioSrc, setAudioSrc] = useState<string>("");
   
   // Function to handle TTS generation
   const generateSpeech = async () => {
     try {
       setIsLoading(true);
       
-      // For this implementation, we'll use the browser's built-in speech synthesis
+      // Configure the speech synthesis utterance
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.volume = volume;
+      
+      // Set language based on the selected option
+      if (language === "hi") {
+        utterance.lang = "hi-IN"; // Hindi language code
+      } else {
+        utterance.lang = "en-US"; // Default to English
+      }
+      
+      // Find appropriate voice based on language
+      const voices = window.speechSynthesis.getVoices();
+      const languageVoices = voices.filter(voice => 
+        language === "hi" ? voice.lang.includes("hi") : voice.lang.includes("en")
+      );
+      
+      if (languageVoices.length > 0) {
+        utterance.voice = languageVoices[0];
+      }
       
       // Start speaking
       speechSynthesis.speak(utterance);
@@ -37,12 +53,14 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
       
       utterance.onend = () => {
         setIsPlaying(false);
+        setIsLoading(false);
       };
       
       utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         setIsPlaying(false);
-        toast.error("Error generating speech");
+        setIsLoading(false);
+        toast.error(language === "hi" ? "आवाज़ उत्पन्न करने में त्रुटि" : "Error generating speech");
       };
       
       // Log the speech generation to Supabase
@@ -50,7 +68,8 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
         await supabaseClient
           .from('speech_logs')
           .insert({
-            speech_text: text
+            speech_text: text,
+            language: language
           });
       } catch (dbError) {
         console.error('Error logging speech generation:', dbError);
@@ -59,8 +78,7 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
       
     } catch (error) {
       console.error('Error generating speech:', error);
-      toast.error("Failed to generate speech");
-    } finally {
+      toast.error(language === "hi" ? "आवाज़ उत्पन्न करने में विफल" : "Failed to generate speech");
       setIsLoading(false);
     }
   };
@@ -93,9 +111,6 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
   const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0];
     setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
-    }
     if (isPlaying) {
       speechSynthesis.cancel();
       setTimeout(() => {
@@ -104,8 +119,19 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
     }
   };
   
-  // Clean up speech synthesis when component unmounts
+  // Load available voices when component mounts
   React.useEffect(() => {
+    const loadVoices = () => {
+      window.speechSynthesis.getVoices();
+    };
+
+    loadVoices();
+    
+    // Some browsers need this event listener to load voices
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    
     return () => {
       speechSynthesis.cancel();
     };
@@ -114,7 +140,7 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
   return (
     <div className="bg-card border rounded-lg p-6 space-y-4">
       <div className="text-sm text-muted-foreground mb-2">
-        Listen to the recognized text:
+        {language === "hi" ? "पहचाने गए टेक्स्ट को सुनें:" : "Listen to the recognized text:"}
       </div>
       
       <div className="flex flex-wrap gap-4 items-center">
@@ -124,14 +150,14 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
           className="min-w-[100px]"
         >
           {isLoading ? (
-            <span>Loading...</span>
+            <span>{language === "hi" ? "लोड हो रहा है..." : "Loading..."}</span>
           ) : isPlaying ? (
             <>
-              <Pause className="mr-2 h-4 w-4" /> Pause
+              <Pause className="mr-2 h-4 w-4" /> {language === "hi" ? "रोकें" : "Pause"}
             </>
           ) : (
             <>
-              <Play className="mr-2 h-4 w-4" /> Play
+              <Play className="mr-2 h-4 w-4" /> {language === "hi" ? "चलाएं" : "Play"}
             </>
           )}
         </Button>
@@ -142,7 +168,7 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
           disabled={isLoading}
         >
           <RotateCcw className="h-4 w-4" />
-          <span className="sr-only">Restart</span>
+          <span className="sr-only">{language === "hi" ? "पुनः प्रारंभ करें" : "Restart"}</span>
         </Button>
         
         <div className="flex items-center gap-2 min-w-[150px] max-w-[200px]">
@@ -157,7 +183,7 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text }) => {
       </div>
       
       <div className="p-3 bg-muted/50 rounded-lg">
-        <p className="text-sm">{text}</p>
+        <p className="text-sm" dir={language === "hi" ? "auto" : "ltr"}>{text}</p>
       </div>
     </div>
   );
