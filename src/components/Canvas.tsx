@@ -7,9 +7,10 @@ import { toast } from "sonner";
 
 interface CanvasProps {
   onCaptureText: (text: string) => void;
+  language?: string;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
+const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
@@ -135,9 +136,9 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText }) => {
       // Get the image data
       const dataURL = canvasRef.current.toDataURL("image/png");
       
-      // Call the Supabase Edge Function for handwriting recognition
+      // Call the Supabase Edge Function for handwriting recognition with language parameter
       const { data, error } = await supabaseClient.functions.invoke('process-handwriting', {
-        body: { image: dataURL }
+        body: { image: dataURL, language }
       });
       
       if (error) {

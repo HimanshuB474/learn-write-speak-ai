@@ -11,12 +11,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowUpFromLine } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "@/lib/supabaseClient";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 const WriteAndSpeak = () => {
   const [recognizedText, setRecognizedText] = useState("");
   const [manualText, setManualText] = useState("");
   const [textToSpeak, setTextToSpeak] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [language, setLanguage] = useState("en");
   
   // Handle text from handwriting recognition
   const handleCaptureText = (text: string) => {
@@ -63,7 +71,7 @@ const WriteAndSpeak = () => {
         
         // Call the Supabase Edge Function for handwriting recognition
         const { data, error } = await supabaseClient.functions.invoke('process-handwriting', {
-          body: { image: base64data }
+          body: { image: base64data, language }
         });
         
         if (error) {
@@ -105,6 +113,30 @@ const WriteAndSpeak = () => {
           </p>
         </div>
         
+        <div className="mb-6">
+          <div className="flex items-center space-x-4">
+            <Label htmlFor="language-select" className="whitespace-nowrap">Language:</Label>
+            <Select 
+              value={language} 
+              onValueChange={setLanguage}
+            >
+              <SelectTrigger id="language-select" className="w-[180px]">
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="hi">Hindi</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {language === "en" ? 
+              "Currently set to recognize English text" : 
+              "वर्तमान में हिंदी पाठ को पहचानने के लिए सेट है"
+            }
+          </p>
+        </div>
+        
         <div className="space-y-8">
           <Tabs defaultValue="draw" className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-2">
@@ -117,7 +149,7 @@ const WriteAndSpeak = () => {
               <p className="text-sm text-muted-foreground mb-2">
                 Use the canvas below to write your text. Our AI will recognize it and convert it to digital text.
               </p>
-              <Canvas onCaptureText={handleCaptureText} />
+              <Canvas onCaptureText={handleCaptureText} language={language} />
             </TabsContent>
             
             <TabsContent value="upload" className="space-y-6">
