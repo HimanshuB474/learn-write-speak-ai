@@ -55,11 +55,15 @@ async function generateGoogleAccessToken() {
     .replace(/=+$/, "");
   const toSign = encoder.encode(`${headerBase64}.${payloadBase64}`);
 
-  // Convert private key for signing
-  const privateKey = SERVICE_ACCOUNT.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-    .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\s/g, ""); // Remove all whitespace including newlines
+  // Convert private key for signing - extract only the base64 content
+  let privateKey = SERVICE_ACCOUNT.private_key;
+  
+  // Remove headers and footers
+  privateKey = privateKey.replace("-----BEGIN PRIVATE KEY-----", "");
+  privateKey = privateKey.replace("-----END PRIVATE KEY-----", "");
+  
+  // Remove ALL whitespace characters (newlines, spaces, tabs, etc.)
+  privateKey = privateKey.replace(/[\r\n\s]/g, "");
 
   const binaryKey = Uint8Array.from(atob(privateKey), (c) => c.charCodeAt(0));
   const cryptoKey = await crypto.subtle.importKey(
