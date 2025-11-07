@@ -1,5 +1,4 @@
-
-import { supabaseClient } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 
@@ -21,14 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Set up auth state listener first
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
     });
 
     // Then check for existing session
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -44,15 +43,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     isLoading,
     signUp: async (email: string, password: string) => {
-      const { error } = await supabaseClient.auth.signUp({ email, password });
+      const redirectUrl = `${window.location.origin}/`;
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
+      });
       return { error };
     },
     signIn: async (email: string, password: string) => {
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       return { error };
     },
     signOut: async () => {
-      await supabaseClient.auth.signOut();
+      await supabase.auth.signOut();
       setUser(null);
       setSession(null);
     },

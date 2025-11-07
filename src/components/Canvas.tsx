@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Eraser, Download, Trash2, PenTool } from "lucide-react";
-import { supabaseClient } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface CanvasProps {
@@ -160,7 +160,7 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
       const dataURL = canvasRef.current.toDataURL("image/png");
       
       // Call the Supabase Edge Function for handwriting recognition with language parameter
-      const { data, error } = await supabaseClient.functions.invoke('process-handwriting', {
+      const { data, error } = await supabase.functions.invoke('process-handwriting', {
         body: { image: dataURL, language }
       });
       

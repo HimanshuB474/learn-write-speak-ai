@@ -3,7 +3,6 @@ import React, { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 import { Play, Pause, Volume2, RotateCcw } from "lucide-react";
-import { supabaseClient } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
 interface TextToSpeechProps {
@@ -63,18 +62,6 @@ const TextToSpeech: React.FC<TextToSpeechProps> = ({ text, language = "en" }) =>
         toast.error(language === "hi" ? "आवाज़ उत्पन्न करने में त्रुटि" : "Error generating speech");
       };
       
-      // Log the speech generation to Supabase
-      try {
-        await supabaseClient
-          .from('speech_logs')
-          .insert({
-            speech_text: text,
-            language: language
-          });
-      } catch (dbError) {
-        console.error('Error logging speech generation:', dbError);
-        // Don't show error to user, this is just for logging
-      }
       
     } catch (error) {
       console.error('Error generating speech:', error);

@@ -15,7 +15,6 @@ import {
   Star
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { supabaseClient } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
 // Mock data - would come from a real API in production

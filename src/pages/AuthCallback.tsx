@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { supabaseClient } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ const AuthCallback = () => {
         }
         
         // Process the session
-        const { data, error } = await supabaseClient.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Authentication error:', error);

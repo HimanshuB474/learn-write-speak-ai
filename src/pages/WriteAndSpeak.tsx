@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowUpFromLine } from "lucide-react";
 import { toast } from "sonner";
-import { supabaseClient } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Select, 
   SelectContent, 
@@ -123,7 +123,7 @@ const WriteAndSpeak = () => {
         const base64data = reader.result as string;
         
         // Call the Supabase Edge Function for handwriting recognition with language parameter
-        const { data, error } = await supabaseClient.functions.invoke('process-handwriting', {
+        const { data, error } = await supabase.functions.invoke('process-handwriting', {
           body: { image: base64data, language }
         });
         
