@@ -54,14 +54,19 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
       canvas.width = rect.width;
       canvas.height = rect.height;
       
-      // Set default styles
+      // Set default styles - must be set AFTER changing canvas size
       context.lineCap = "round";
       context.lineJoin = "round";
       context.strokeStyle = "black";
       context.lineWidth = 3;
+      context.globalCompositeOperation = "source-over";
+      
       // Fill with white background for better OCR results
       context.fillStyle = "white";
       context.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Reset stroke style after fill
+      context.strokeStyle = "black";
     };
     
     resize();
@@ -73,6 +78,7 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
   
   // Handle mouse/touch events
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     setIsDrawing(true);
     if (!ctx) return;
     
@@ -82,6 +88,7 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
   };
   
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     if (!isDrawing || !ctx) return;
     
     const { offsetX, offsetY } = getCoordinates(e);
@@ -113,7 +120,8 @@ const Canvas: React.FC<CanvasProps> = ({ onCaptureText, language = "en" }) => {
     const rect = canvas.getBoundingClientRect();
     
     if ('touches' in e) {
-      // Touch event
+      // Touch event - prevent default scrolling
+      if (e.touches.length === 0) return { offsetX: 0, offsetY: 0 };
       const touch = e.touches[0];
       return {
         offsetX: touch.clientX - rect.left,
