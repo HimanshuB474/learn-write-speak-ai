@@ -57,9 +57,9 @@ async function generateGoogleAccessToken() {
 
   // Convert private key for signing
   const privateKey = SERVICE_ACCOUNT.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----\n/, "")
-    .replace(/\n-----END PRIVATE KEY-----\n?/, "")
-    .replace(/\\n/g, "\n"); // Important: Handle escaped newlines properly
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s/g, ""); // Remove all whitespace including newlines
 
   const binaryKey = Uint8Array.from(atob(privateKey), (c) => c.charCodeAt(0));
   const cryptoKey = await crypto.subtle.importKey(
